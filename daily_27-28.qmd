@@ -123,3 +123,26 @@ slope <- delta_elevation / river_length_m
 
 print(slope)
 ```
+
+```{r}
+library(ggplot2)
+
+ggplot(elevation_df, aes(x = ID, y = dem)) +
+  geom_line(color = "steelblue", linewidth = 1) +
+  labs(
+    title = "River Elevation Profile",
+    x = "Point ID Along River",
+    y = "Elevation (m)"
+  ) +
+  theme_minimal()
+
+```
+
+```{r}
+ggplot(poudre_pts) +
+  geom_sf(aes(color = elevation), size = 1) +
+  scale_color_viridis_c(option = "plasma", name = "Elevation (m)") +
+  labs(title = "River Profile Map Colored by Elevation") +
+  theme_minimal()
+
+```
