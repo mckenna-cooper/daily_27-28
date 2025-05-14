@@ -1,0 +1,125 @@
+---
+title: "Daily Assignments 27&28"
+subtitle: "ESS 330"
+author: "Mckenna Cooper"
+format: html
+execute: 
+  echo: true
+---
+
+#### **Define River Object**
+
+```{r}
+library(osmdata)
+library(sf)
+library(terra)
+library(dplyr)
+
+bbox <- getbb("Fort Collins, Colorado")
+
+fc_osm <- opq(bbox = bbox) %>%
+  add_osm_feature(key = "waterway") %>%
+  osmdata_sf()
+
+poudre_river <- fc_osm$osm_lines %>%
+  filter(grepl("Cache la Poudre", name, ignore.case = TRUE))
+
+poudre_river_union <- st_union(poudre_river)
+
+poudre_river_sf <- st_as_sf(poudre_river_union)
+
+river_length <- st_length(poudre_river_sf)
+print(river_length)
+
+```
+
+```{r}
+poudre_river_union <- st_union(poudre_river)
+
+poudre_river_line <- st_cast(poudre_river_union, "MULTILINESTRING")
+
+poudre_pts <- st_cast(poudre_river_line, "POINT")
+
+length(poudre_pts)
+
+```
+
+#### **Define DEM Object**
+
+```{r}
+
+dem <- rast("https://raw.githubusercontent.com/mikejohnson51/csu-ess-330/refs/heads/main/resources/foco-elev-cm.tif")
+
+plot(dem)
+
+```
+
+#### **Extract River Profile**
+
+```{r}
+
+poudre_pts <- st_cast(poudre_river, "POINT")
+
+
+poudre_pts <- st_transform(poudre_pts, crs(dem))
+
+
+poudre_vect <- vect(poudre_pts)
+elevation_df <- extract(dem, poudre_vect)
+
+
+poudre_pts$elevation <- elevation_df[, 2][[1]]
+
+
+poudre_pts <- poudre_pts %>%
+  mutate(ID = row_number())
+
+class(poudre_pts)          
+st_geometry(poudre_pts)   
+head(poudre_pts)           
+```
+
+#### **Compute Sinuosity**
+
+```{r}
+# Check the coordinates of the first and last points to confirm they're correct
+start_pt_coords <- st_coordinates(poudre_pts[1, ])
+end_pt_coords <- st_coordinates(poudre_pts[nrow(poudre_pts), ])
+
+print(start_pt_coords)
+print(end_pt_coords)
+
+# Compute the straight-line distance between the first and last points
+straight_dist <- st_distance(poudre_pts[1, ], poudre_pts[nrow(poudre_pts), ])
+straight_dist_m <- as.numeric(straight_dist)
+
+# Get the total river length (already calculated)
+river_length_m <- as.numeric(st_length(poudre_river))
+
+# Calculate sinuosity
+sinuosity <- river_length_m / straight_dist_m
+print(paste("Sinuosity:", sinuosity))
+
+
+```
+
+#### **Compute Slope**
+
+```{r}
+st_bbox(poudre_pts)  # Get bounding box of river points
+st_bbox(dem)         # Get bounding box of DEM
+
+```
+
+```{r}
+start_elevation <- poudre_pts$elevation[1] 
+
+end_elevation <- poudre_pts$elevation[nrow(poudre_pts)]  
+
+delta_elevation <- end_elevation - start_elevation
+river_length_m <- river_length / 100 
+
+slope <- delta_elevation / river_length_m
+
+print(slope)
+```
